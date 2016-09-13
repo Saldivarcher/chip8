@@ -432,7 +432,45 @@ int main(int argc, char** argv)
     cpu.read_file(argv[1]);
 
     
+    SDL_Window* window = SDL_CreateWindow(argv[1], SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, W*4,H*6, SDL_WINDOW_RESIZABLE);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, W,H);
 
+    // Create a mapping of SDL keyboard symbols to Chip-8 keypad codes.
+    std::unordered_map<int,int> keymap{
+        {SDLK_1, 0x1}, {SDLK_2, 0x2}, {SDLK_3, 0x3}, {SDLK_4, 0xC},
+        {SDLK_q, 0x4}, {SDLK_w, 0x5}, {SDLK_e, 0x6}, {SDLK_r, 0xD},
+        {SDLK_a, 0x7}, {SDLK_s, 0x8}, {SDLK_d, 0x9}, {SDLK_f, 0xE},
+        {SDLK_z, 0xA}, {SDLK_x, 0x0}, {SDLK_c, 0xB}, {SDLK_v, 0xF},
+        {SDLK_5, 0x5}, {SDLK_6, 0x6}, {SDLK_7, 0x7},
+        {SDLK_8, 0x8}, {SDLK_9, 0x9}, {SDLK_0, 0x0}, {SDLK_ESCAPE,-1}
+    }
+
+    bool loop = true;
+    while(loop){
+        cpu.emulateCycle();
+        for(SDL_Event ev; SDL_PollEvent(&ev); )
+            switch(ev.type)
+            {
+                case SDL_QUIT: interrupted = true; break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                    auto i = keymap.find(ev.key.keysym.sym);
+                    if(i == keymap.end()) break;
+                    if(i->second == -1) { interrupted = true; break; }
+                    cpu.key[i->second] = ev.type==SDL_KEYDOWN;
+                    if(ev.type==SDL_KEYDOWN && (cpu.waiting_key & 0x80))
+                    {
+                        cpu.waiting_key        &= 0x7F;
+                        cpu.V[cpu.waiting_key] = i->second;
+                    }
+            }
+        Uint32 pixels[W * H];
+        cpu.render(pixels);
+        SDL_UpdateTexture(texture, nullptr, pixels, 4*W);
+        SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+        SDL_RenderPresent(renderer);
+    }
 
 
 }
