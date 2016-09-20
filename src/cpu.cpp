@@ -1,4 +1,4 @@
-#include "cpu.h"
+#include "../include/cpu.h"
 
 using namespace std;
 
@@ -65,10 +65,10 @@ Chip8::Chip8()
 
 }
 
-void Chip8::render(int* pixels)
+void Chip8::render(Uint32* pixels)
 {
     for (int pos = 0; pos < W * H; ++pos)
-        pixels[pos] = 0xFFFFFF * ((gfx[pos] >> (7 - pos % 8)) & 1);
+        pixels[pos] = 0xFFFFFF * ((gfx[pos] >> (7 - pos)) & 1);
 }
 
 void Chip8::read_file(const char* filename)
@@ -121,6 +121,10 @@ void Chip8::emulateCycle()
 
         if(delay_timer > 0)
             --delay_timer;
+        if(sound_timer > 0){
+            --sound_timer;
+            printf("TESSSTTT\n");
+        }
     }
     catch (NullPointerException e){
         cerr << e.what() << endl;
@@ -323,7 +327,6 @@ void Chip8::drw()
             }
         }
     }
-    pc += 2;
 }
 
 // 0xEx9E
@@ -361,7 +364,6 @@ void Chip8::ld_vx_k()
             keyPress = true;
         }
     }
-    waiting_key = 0x80 | x;
 
     if(!keyPress)
         return;
@@ -424,10 +426,89 @@ void Chip8::ld_vx_i()
     pc += 2;
 }
 
+void Chip8::debugRender()
+{
+	// Draw
+	for(int y = 0; y < 32; ++y)
+	{
+		for(int x = 0; x < 64; ++x)
+		{
+			if(gfx[(y*64) + x] == 0) 
+				printf("O");
+			else 
+				printf(" ");
+		}
+		printf("\n");
+	}
+	printf("\n");
+}
 
+void Chip8::dump()
+{
+    for(auto &i: gfx)
+        printf("gfx: %d\n", i);
+}
 
 int main(int argc, char** argv)
 {
     Chip8 cpu;
     cpu.read_file(argv[1]);
+
+    unordered_map<int,int> keymap{
+        {SDLK_1, 0x1}, {SDLK_2, 0x2}, {SDLK_3, 0x3}, {SDLK_4, 0xC},
+        {SDLK_q, 0x4}, {SDLK_w, 0x5}, {SDLK_e, 0x6}, {SDLK_r, 0xD},
+        {SDLK_a, 0x7}, {SDLK_s, 0x8}, {SDLK_d, 0x9}, {SDLK_f, 0xE},
+        {SDLK_z, 0xA}, {SDLK_x, 0x0}, {SDLK_c, 0xB}, {SDLK_v, 0xF},
+        {SDLK_5, 0x5}, {SDLK_6, 0x6}, {SDLK_7, 0x7},
+        {SDLK_8, 0x8}, {SDLK_9, 0x9}, {SDLK_0, 0x0}, {SDLK_ESCAPE,-1}
+    };
+
+    for (;;){
+        cpu.emulateCycle();
+        printf("opcode: %04X pc: %d\n", cpu.opcode, cpu.pc);
+    }
+
+    /*
+    SDL_Window* window = SDL_CreateWindow(argv[1], SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, W*4,H*6, SDL_WINDOW_RESIZABLE);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
+    SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, W,H);
+
+    unsigned insns_per_frame = 60;
+    unsigned max_consecutive_ins = 60;
+    int frames_done = 0;
+    auto start = std::chrono::system_clock::now();
+    bool loop = true;
+    while(loop){
+        cpu.emulateCycle();
+        printf("opcode: %04X pc: %d\n", cpu.opcode, cpu.pc);
+        for (SDL_Event event; SDL_PollEvent(&event);)
+        {
+            switch(event.type){
+                case SDL_QUIT:
+                    loop = false;
+                    break;
+            }
+        }
+
+        auto cur = chrono::system_clock::now();
+        chrono::duration<double> elapsed_secs = cur - start;
+        int frames = int(elapsed_secs.count() * 60) - frames_done;
+        if (frames > 0)
+        {
+            frames_done += frames;
+            int st = std::min(frames, cpu.sound_timer+0); cpu.sound_timer -= st;
+            int dt = std::min(frames, cpu.delay_timer+0); cpu.delay_timer -= dt;
+            Uint32 pixels[W * H];
+            cpu.render(pixels);
+            SDL_UpdateTexture(texture, nullptr, pixels, 4*W);
+            SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+            SDL_RenderPresent(renderer);
+        }
+        // Adjust the instruction count to compensate for our rendering speed
+        max_consecutive_ins = std::max(frames, 1) * insns_per_frame;
+        // If the CPU is still waiting for a key, or if we didn't
+        // have a frame yet, consume a bit of time
+        if((cpu.waiting_key & 0x80) || !frames) SDL_Delay(1000/60);
+    }
+    */
 }

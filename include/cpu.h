@@ -11,6 +11,10 @@
 #include <SDL2/SDL.h>
 
 
+#include <chrono>
+#include <utility>
+
+
 class NullPointerException: public std::runtime_error 
 {
 public:
@@ -29,7 +33,7 @@ public:
     unsigned char V[16], sp, waiting_key;
     unsigned short I, pc, stack[12];
     std::random_device rd;
-    unsigned char gfx[(W * H)/8], font[16 * 5];
+    unsigned char gfx[(W * H)], font[16 * 5];
     unsigned char key[16];
     unsigned char delay_timer, sound_timer;
 
@@ -41,8 +45,9 @@ public:
     Chip8();
     void emulateCycle();
     void read_file(const char *);
-    void render(int*);
-
+    void render(Uint32*);
+    void debugRender();
+    void dump();
 
     /******instructions*******/
 
