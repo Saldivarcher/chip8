@@ -1,4 +1,4 @@
-#include "../include/cpu.h"
+#include "cpu.h"
 
 using namespace std;
 
@@ -52,8 +52,6 @@ Chip8::Chip8()
     instructions[0xF055] = &Chip8::ld_i_vx;     instructions[0xF065] = &Chip8::ld_vx_i;
 
     pc = 0x200;
-    sp = 0;
-    I = 0;
 
     memset(memory, 0, sizeof(memory));
     memset(gfx, 0, sizeof(gfx));
@@ -61,8 +59,6 @@ Chip8::Chip8()
     memset(V, 0, sizeof(V));
     for (auto i : boost::irange(0, 80))
         memory[i] = font[i];
-    
-
 }
 
 void Chip8::render(Uint32* pixels)
@@ -77,7 +73,6 @@ void Chip8::read_file(const char* filename)
     ifstream f(filename, ios::in | ios::binary);
     while(f.good())
         memory[pos++] = f.get();
-    
 }
 
 void Chip8::emulateCycle()
@@ -134,6 +129,7 @@ void Chip8::emulateCycle()
 }
 
 // 0x00E0
+// clear the display
 void Chip8::cls()
 {
     for(auto& i: gfx)
@@ -142,35 +138,41 @@ void Chip8::cls()
 }
 
 // 0x00EE
+// return from subroutine -> pc = stack then --sp
 void Chip8::ret()
 {
-    pc = stack[--sp];
+    pc = stack[sp--];
     pc += 2;
 }
 
 // 0x1nnn
+// jump to location nnn -> pc = nnn
 void Chip8::jp_addr()
 {
     pc = nnn;
 }
 
 // 0x2nnn
+// ++sp -> stack = pc -> pc = nnn
 void Chip8::call()
 {
-    stack[sp++] = pc;
+    stack[++sp] = pc;
     pc = nnn;
 }
 
 // 0x3xkk
+// skip instruction if Vx == kk
 void Chip8::se_vx_byte()
 {
     if (Vx == kk)
         pc += 4;
     else
         pc += 2;
+
 }
 
 // 0x4xkk
+// skip instruction if Vx != kk
 void Chip8::sne_vx_byte()
 {
     if(Vx != kk)
@@ -180,6 +182,7 @@ void Chip8::sne_vx_byte()
 }
 
 //0x5xy0
+// skip instruction if Vx == Vy
 void Chip8::se_vx_vy()
 {
     if(Vx == Vy)
@@ -189,6 +192,7 @@ void Chip8::se_vx_vy()
 }
 
 // 0x6xkk
+// set Vx = kk
 void Chip8::ld_vx_byte()
 {
     Vx = kk;
@@ -196,6 +200,7 @@ void Chip8::ld_vx_byte()
 }
 
 // 0x7xkk
+// set Vx = Vx + kk
 void Chip8::add_vx_byte()
 {
     Vx = Vx + kk;
@@ -203,6 +208,7 @@ void Chip8::add_vx_byte()
 }
 
 // 0x8xy0
+// set Vx = Vy
 void Chip8::ld_vx_vy()
 {
     Vx = Vy;
@@ -327,6 +333,8 @@ void Chip8::drw()
             }
         }
     }
+
+    pc += 2;
 }
 
 // 0xEx9E
@@ -426,29 +434,6 @@ void Chip8::ld_vx_i()
     pc += 2;
 }
 
-void Chip8::debugRender()
-{
-	// Draw
-	for(int y = 0; y < 32; ++y)
-	{
-		for(int x = 0; x < 64; ++x)
-		{
-			if(gfx[(y*64) + x] == 0) 
-				printf("O");
-			else 
-				printf(" ");
-		}
-		printf("\n");
-	}
-	printf("\n");
-}
-
-void Chip8::dump()
-{
-    for(auto &i: gfx)
-        printf("gfx: %d\n", i);
-}
-
 int main(int argc, char** argv)
 {
     Chip8 cpu;
@@ -463,12 +448,7 @@ int main(int argc, char** argv)
         {SDLK_8, 0x8}, {SDLK_9, 0x9}, {SDLK_0, 0x0}, {SDLK_ESCAPE,-1}
     };
 
-    for (;;){
-        cpu.emulateCycle();
-        printf("opcode: %04X pc: %d\n", cpu.opcode, cpu.pc);
-    }
 
-    /*
     SDL_Window* window = SDL_CreateWindow(argv[1], SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, W*4,H*6, SDL_WINDOW_RESIZABLE);
     SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, 0);
     SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, W,H);
@@ -480,7 +460,8 @@ int main(int argc, char** argv)
     bool loop = true;
     while(loop){
         cpu.emulateCycle();
-        printf("opcode: %04X pc: %d\n", cpu.opcode, cpu.pc);
+        // used this to debug 
+        //printf("opcode: %04X pc: %d\n", cpu.opcode, cpu.pc);
         for (SDL_Event event; SDL_PollEvent(&event);)
         {
             switch(event.type){
@@ -510,5 +491,4 @@ int main(int argc, char** argv)
         // have a frame yet, consume a bit of time
         if((cpu.waiting_key & 0x80) || !frames) SDL_Delay(1000/60);
     }
-    */
 }

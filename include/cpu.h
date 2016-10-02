@@ -29,7 +29,7 @@ private:
     unsigned short nnn, kk, VF, Vx, Vy, x, y;
 public:
     unsigned short opcode;
-    unsigned char memory[4096] {0x12, 0x00};
+    unsigned char memory[4096];
     unsigned char V[16], sp, waiting_key;
     unsigned short I, pc, stack[12];
     std::random_device rd;
@@ -46,8 +46,6 @@ public:
     void emulateCycle();
     void read_file(const char *);
     void render(Uint32*);
-    void debugRender();
-    void dump();
 
     /******instructions*******/
 
